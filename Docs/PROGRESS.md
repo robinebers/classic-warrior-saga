@@ -32,6 +32,27 @@
 - Rage from dealing/taking, aggro/leash/evade, combat log, Tab/T
 - Screenshot: `Docs/Screenshots/M3/01_combat.png`
 
+## M4 — XP & leveling ✅ (core)
+
+- Kill XP + rested split + ding chat + auto-learn
+- Rested blue XP bubbles in HUD
+
+## M5 — Abilities ✅ (core set)
+
+- Charge, Rend, HS (queued), TC, Battle Shout, Bloodrage, Execute, Overpower, Hamstring
+- Action bar keybinds 1–0,-,=
+- Tests for stance gate / Charge / HS queue
+
+## M7 — Save ✅ (scaffold)
+
+- localStorage quicksave serialize + 20× roundtrip property test
+- Title screen Continue / New Character
+
+## M9 — SimBot ✅ (partial)
+
+- Headless SimBot reaches **L4** with zero invariant violations
+
 ## Next
 
-- M4 XP bar rested + ding polish; M5 ability ranks/trainer; Classic model imports; audio buses
+- Trainer NPC UI, remaining Appendix C, talents D, 14 quests, zones, audio, SimBot→60, Playwright e2e
+
