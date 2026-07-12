@@ -42,6 +42,7 @@ export const TALENTS: TalentDef[] = [
   { id: 'iron_will', name: 'Iron Will', tree: 'protection', tier: 2, maxRanks: 5, pointsRequiredInTree: 5, description: 'Increases stun/charm resistance.' },
   { id: 'last_stand', name: 'Last Stand', tree: 'protection', tier: 3, maxRanks: 1, pointsRequiredInTree: 10, description: 'Temporarily grants 30% of max health.' },
   { id: 'defiance', name: 'Defiance', tree: 'protection', tier: 3, maxRanks: 5, pointsRequiredInTree: 10, description: 'Increases threat / damage dealt in Defensive Stance.' },
+  { id: 'improved_sunder_armor', name: 'Improved Sunder Armor', tree: 'protection', tier: 4, maxRanks: 3, pointsRequiredInTree: 15, description: 'Reduces the rage cost of Sunder Armor by 1/2/3.' },
   { id: 'concussion_blow', name: 'Concussion Blow', tree: 'protection', tier: 5, maxRanks: 1, pointsRequiredInTree: 20, description: 'Stuns the opponent for 5 sec.' },
   { id: 'shield_slam', name: 'Shield Slam', tree: 'protection', tier: 7, maxRanks: 1, requires: 'concussion_blow', pointsRequiredInTree: 30, description: 'Slam the target with your shield for heavy damage.' },
 ]

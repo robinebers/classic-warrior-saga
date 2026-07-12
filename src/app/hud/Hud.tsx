@@ -4,6 +4,7 @@ import { xpToLevel } from '@game-core/Formulas'
 import { TalentPanel } from './TalentPanel'
 import { TrainerPanel } from './TrainerPanel'
 import { QuestPanel } from './QuestPanel'
+import { StanceBar } from './StanceBar'
 import './hud.css'
 
 export function Hud() {
@@ -24,6 +25,21 @@ export function Hud() {
       sync()
     }
     const onKey = (e: KeyboardEvent) => {
+      if (e.code === 'Digit1' && e.ctrlKey) {
+        world.switchStance('battle')
+        sync()
+        return
+      }
+      if (e.code === 'Digit2' && e.ctrlKey) {
+        world.switchStance('defensive')
+        sync()
+        return
+      }
+      if (e.code === 'Digit3' && e.ctrlKey) {
+        world.switchStance('berserker')
+        sync()
+        return
+      }
       if (e.code === 'KeyN') setTalentsOpen((v) => !v)
       if (e.code === 'KeyK') setTrainerOpen((v) => !v)
       if (e.code === 'KeyL') setQuestOpen((v) => !v)
@@ -81,6 +97,7 @@ export function Hud() {
               <span className="level-badge" data-testid="player-level">
                 {hud.level}
               </span>
+              {hud.resting && <span className="zzz">Zzz</span>}
             </div>
             <div className="bar hp" title={`${hud.health} / ${hud.maxHealth}`}>
               <div style={{ width: `${(hud.health / hud.maxHealth) * 100}%` }} />
@@ -111,7 +128,7 @@ export function Hud() {
       </div>
 
       <div className="minimap" data-testid="minimap">
-        <div className="minimap-label">Valley Of Trials</div>
+        <div className="minimap-label">{hud.zoneName}</div>
         <div className="minimap-dot" />
       </div>
 
@@ -139,6 +156,7 @@ export function Hud() {
         ))}
       </div>
 
+      <StanceBar />
       <div className="action-bar" data-testid="action-bar">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='].map((k, i) => {
           const id = world.actionBar[i] || ''

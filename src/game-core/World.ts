@@ -26,6 +26,14 @@ import {
 } from './abilities/AbilityEngine'
 import { ABILITIES } from './abilities/AbilityData'
 import { QuestLog } from './quests/QuestLog'
+import {
+  isRestingAt,
+  resolveRockCollision,
+  sampleHeight,
+  isWalkable,
+  zoneAt,
+  zoneName,
+} from './world/Heightmap'
 import type { EntityId } from './types'
 import { EventBus, type Stance, type Vec3 } from './types'
 
@@ -200,6 +208,8 @@ export class World {
     this.player = createPlayer('Thrakmar')
     learnAvailable(this.player)
     this.quests.accept('boar_tusk_harvest')
+    // Start near campfire in the valley bowl
+    this.player.position = { x: 0, y: sampleHeight(0, 6), z: 6 }
   }
 
   queueIntent(i: Intent): void {
@@ -255,6 +265,7 @@ export class World {
     this.updateMobs(dt)
     this.updateCombat(dt)
     this.tickAuras(dt)
+    this.tickRested(dt)
     this.decayRage(dt)
     tickAbilityRuntime(this.abilityRt, dt)
     if (this.attackAnimT > 0) {
@@ -326,6 +337,7 @@ export class World {
       stance: p.stance,
       inCombat: p.inCombat,
       known: p.knownAbilities,
+      talents: p.talents,
       targetHpPct: target ? target.health / target.maxHealth : null,
       hasShield: false,
     })
@@ -674,8 +686,18 @@ export class World {
     } else if (this.attackAnimT <= 0) {
       p.anim = 'idle'
     }
-    p.position.x += vx * dt
-    p.position.z += vz * dt
+
+    const tryX = p.position.x + vx * dt
+    const tryZ = p.position.z + vz * dt
+    const slid = resolveRockCollision(tryX, tryZ)
+    if (isWalkable(slid.x, slid.z)) {
+      p.position.x = slid.x
+      p.position.z = slid.z
+    } else if (isWalkable(p.position.x, slid.z)) {
+      p.position.z = slid.z
+    } else if (isWalkable(slid.x, p.position.z)) {
+      p.position.x = slid.x
+    }
 
     this.verticalVel -= GRAVITY * dt
     p.position.y += this.verticalVel * dt
@@ -685,6 +707,21 @@ export class World {
       this.verticalVel = 0
       this.onGround = true
     }
+  }
+
+  private tickRested(dt: number): void {
+    // 5% of a level per 8 game-hours; 1 game-hour = 2 real minutes → accelerated
+    // → 5% level / (8*120s) real ≈ per second rate
+    if (!isRestingAt(this.player.position.x, this.player.position.z)) return
+    if (this.player.inCombat) return
+    const need = xpToLevel(this.player.level) || 400
+    const cap = need * 1.5
+    const perSec = (0.05 * need) / (8 * 120)
+    this.player.restedXp = Math.min(cap, this.player.restedXp + perSec * dt)
+  }
+
+  currentZoneName(): string {
+    return zoneName(zoneAt(this.player.position.x, this.player.position.z))
   }
 
   private updateMobs(dt: number): void {
@@ -780,9 +817,10 @@ export class World {
     const defense = target.level * 5
     const skill = p.weaponSkillAxes2H
     const skillDiff = defense - skill
+    const critBonus = p.talents.cruelty ?? 0
     const outcome = rollPlayerAttack(this.rng, {
       skillDiff,
-      sheetCritPct: p.critPct,
+      sheetCritPct: p.critPct + critBonus,
       white: !yellow,
       mobLevel: target.level,
       playerLevel: p.level,
@@ -822,7 +860,7 @@ export class World {
       const rankN = p.knownAbilities[qid] ?? 1
       const def = ABILITIES.find((a) => a.id === qid)
       bonus = def?.ranks.find((r) => r.rank === rankN)?.effect ?? 11
-      p.rage = Math.max(0, p.rage - (qid === 'cleave' ? 20 : 15))
+      p.rage = Math.max(0, p.rage - Math.max(0, (qid === 'cleave' ? 20 : 15) - (qid === 'heroic_strike' ? (p.talents.improved_heroic_strike ?? 0) : 0)))
       this.abilityRt.nextSwingAbility = null
       label = def?.name ?? 'Ability'
       // Cleave secondary target
@@ -1164,10 +1202,6 @@ export class World {
       })
     }
   }
-}
-
-function sampleHeight(x: number, z: number): number {
-  return Math.sin(x * 0.05) * 0.4 + Math.cos(z * 0.05) * 0.4
 }
 
 function distSq(a: Vec3, b: Vec3): number {

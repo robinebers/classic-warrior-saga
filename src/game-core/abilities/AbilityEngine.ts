@@ -66,6 +66,7 @@ export type CastContext = {
   stance: Stance
   inCombat: boolean
   known: Record<string, number>
+  talents?: Record<string, number>
   targetHpPct: number | null
   hasShield: boolean
 }
@@ -109,11 +110,17 @@ export function tryCast(rt: AbilityRuntime, abilityId: string, ctx: CastContext)
   }
 
   let cost = def.rageCost
-  // Improved HS talent placeholder handled later
-  if (ctx.rage < cost && !def.onNextSwing) {
-    return { ok: false, error: 'Not Enough Rage' }
+  if (abilityId === 'heroic_strike') {
+    cost = Math.max(0, cost - (ctx.talents?.improved_heroic_strike ?? 0))
   }
-  if (def.onNextSwing && ctx.rage < cost) {
+  if (abilityId === 'thunder_clap') {
+    const ranks = ctx.talents?.improved_thunder_clap ?? 0
+    cost = Math.max(0, cost - (ranks === 1 ? 1 : ranks === 2 ? 2 : ranks >= 3 ? 4 : 0))
+  }
+  if (abilityId === 'sunder_armor') {
+    cost = Math.max(0, cost - (ctx.talents?.improved_sunder_armor ?? 0))
+  }
+  if (ctx.rage < cost) {
     return { ok: false, error: 'Not Enough Rage' }
   }
 

@@ -7,27 +7,80 @@ import { InputManager } from './input/InputManager'
 import { TICK_DT } from '@game-core/World'
 import { Hud } from './hud/Hud'
 import { AnimatedModel } from './models/AnimatedModel'
+import {
+  MAP_HALF,
+  ROCKS,
+  REST_CAMP,
+  sampleHeight,
+  zoneAt,
+  zoneColor,
+} from '@game-core/world/Heightmap'
 
 function Terrain() {
   const geo = useMemo(() => {
-    const g = new THREE.PlaneGeometry(400, 400, 128, 128)
+    const segs = 192
+    const size = MAP_HALF * 2
+    const g = new THREE.PlaneGeometry(size, size, segs, segs)
     g.rotateX(-Math.PI / 2)
     const pos = g.attributes.position
+    const colors = new Float32Array(pos.count * 3)
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i)
       const z = pos.getZ(i)
-      const y = Math.sin(x * 0.05) * 0.4 + Math.cos(z * 0.05) * 0.4
+      const y = sampleHeight(x, z)
       pos.setY(i, y)
+      const [r, gch, b] = zoneColor(zoneAt(x, z))
+      // slight vertex noise
+      const n = (Math.sin(x * 0.1) + Math.cos(z * 0.1)) * 0.03
+      colors[i * 3] = r + n
+      colors[i * 3 + 1] = gch + n * 0.5
+      colors[i * 3 + 2] = b
     }
     pos.needsUpdate = true
+    g.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     g.computeVertexNormals()
     return g
   }, [])
 
   return (
     <mesh geometry={geo} receiveShadow>
-      <meshStandardMaterial color="#8a5a3c" roughness={0.95} metalness={0.05} />
+      <meshStandardMaterial vertexColors roughness={0.92} metalness={0.04} />
     </mesh>
+  )
+}
+
+function Rocks() {
+  return (
+    <group>
+      {ROCKS.map((r, i) => (
+        <mesh key={i} position={[r.x, sampleHeight(r.x, r.z) + r.height * 0.35, r.z]} castShadow>
+          <dodecahedronGeometry args={[r.radius * 0.95, 0]} />
+          <meshStandardMaterial color="#5a4030" roughness={0.95} flatShading />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function Campfire() {
+  const y = sampleHeight(REST_CAMP.x, REST_CAMP.z)
+  return (
+    <group position={[REST_CAMP.x, y, REST_CAMP.z]}>
+      <mesh position={[0, 0.15, 0]}>
+        <cylinderGeometry args={[1.2, 1.4, 0.3, 10]} />
+        <meshStandardMaterial color="#3a2a1a" />
+      </mesh>
+      <mesh position={[0, 0.55, 0]}>
+        <coneGeometry args={[0.55, 1.1, 6]} />
+        <meshStandardMaterial color="#ff6a20" emissive="#ff4500" emissiveIntensity={0.85} />
+      </mesh>
+      <pointLight color="#ff7a30" intensity={2.2} distance={18} position={[0, 1.2, 0]} />
+      {/* inn tent stub */}
+      <mesh position={[3.5, 1.2, 2]}>
+        <coneGeometry args={[2.2, 2.4, 4]} />
+        <meshStandardMaterial color="#6b4a2a" />
+      </mesh>
+    </group>
   )
 }
 
@@ -206,6 +259,8 @@ export function GameApp() {
         <hemisphereLight args={['#b1e1ff', '#8a5a3c', 0.45]} />
         <Sky sunPosition={[40, 20, 40]} turbidity={6} rayleigh={1.2} />
         <Terrain />
+        <Rocks />
+        <Campfire />
         <PlayerView />
         <MobsView />
         <CameraRig />

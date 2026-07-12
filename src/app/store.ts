@@ -1,3 +1,4 @@
+import { isRestingAt } from '@game-core/world/Heightmap'
 import { create } from 'zustand'
 import { World } from '@game-core/World'
 import type { GameEvent } from '@game-core/types'
@@ -13,6 +14,8 @@ type HudSnapshot = {
   rage: number
   targetName: string | null
   targetHpPct: number | null
+  zoneName: string
+  resting: boolean
   chat: { channel: string; text: string }[]
   fps: number
   errorText: string | null
@@ -42,6 +45,8 @@ function emptyHud(): HudSnapshot {
     rage: 0,
     targetName: null,
     targetHpPct: null,
+    zoneName: 'Valley Of Trials',
+    resting: false,
     chat: [],
     fps: 0,
     errorText: null,
@@ -73,6 +78,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         rage: Math.floor(p.rage),
         targetName: target?.name ?? null,
         targetHpPct: target ? target.health / target.maxHealth : null,
+        zoneName: w.currentZoneName(),
+        resting: isRestingAt(p.position.x, p.position.z) && !p.inCombat,
       },
     }))
   },

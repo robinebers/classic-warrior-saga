@@ -1,0 +1,26 @@
+.stance-bar {
+  position: absolute;
+  left: calc(50% - 360px);
+  bottom: 22px;
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+}
+.stance-bar button {
+  width: 34px;
+  height: 34px;
+  background: #1a140f;
+  border: 2px solid #88704a;
+  color: #cbb896;
+  font-weight: 700;
+  cursor: pointer;
+}
+.stance-bar button.active {
+  border-color: #c9a227;
+  color: #ffd100;
+  box-shadow: 0 0 8px #c9a22788;
+}
+.stance-bar button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
