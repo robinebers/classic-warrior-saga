@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useGameStore } from '../store'
 import { xpToLevel } from '@game-core/Formulas'
 import { TalentPanel } from './TalentPanel'
+import { TrainerPanel } from './TrainerPanel'
 import './hud.css'
 
 export function Hud() {
@@ -10,6 +11,7 @@ export function Hud() {
   const sync = useGameStore((s) => s.syncFromWorld)
   const handleEvents = useGameStore((s) => s.handleEvents)
   const [talentsOpen, setTalentsOpen] = useState(false)
+  const [trainerOpen, setTrainerOpen] = useState(false)
 
   useEffect(() => {
     const onConsole = (e: Event) => {
@@ -21,7 +23,11 @@ export function Hud() {
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'KeyN') setTalentsOpen((v) => !v)
-      if (e.code === 'Escape') setTalentsOpen(false)
+      if (e.code === 'KeyK') setTrainerOpen((v) => !v)
+      if (e.code === 'Escape') {
+        setTalentsOpen(false)
+        setTrainerOpen(false)
+      }
     }
     window.addEventListener('cws-console', onConsole)
     window.addEventListener('keydown', onKey)
@@ -138,6 +144,7 @@ export function Hud() {
         })}
       </div>
       <TalentPanel open={talentsOpen} onClose={() => setTalentsOpen(false)} />
+      <TrainerPanel open={trainerOpen} onClose={() => setTrainerOpen(false)} />
     </div>
   )
 }

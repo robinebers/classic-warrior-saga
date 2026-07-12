@@ -93,7 +93,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     w.spawnMob('bristleboar', 'Bristleboar', 2, { x: -5, y: 0, z: -10 })
     w.spawnMob('venomtail_scorpid', 'Venomtail Scorpid', 3, { x: 12, y: 0, z: 4 })
     get().pushChat('system', 'Welcome To The Valley Of Trials, Warrior.')
-    get().pushChat('system', 'WASD Move · Q/E Strafe · Mouse Look · Tab Target · T Attack · Space Jump')
+    get().pushChat(
+      'system',
+      'WASD Move · Q/E Strafe · Mouse Look · Tab Target · T Attack · 1-0 Abilities · N Talents · K Trainer · Space Jump · ~ Console',
+    )
     set({ started: true })
     get().syncFromWorld()
   },

@@ -136,7 +136,7 @@ export function createPlayer(name = 'Thrakmar'): PlayerState {
     armor: 36 + stats.agi * 2,
     inCombat: false,
     targetId: null,
-    copper: 0,
+    copper: 500,
     playtimeSec: 0,
     weaponSkillAxes2H: 5 * level + 5,
     knownAbilities: {
