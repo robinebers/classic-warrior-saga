@@ -1,4 +1,4 @@
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber'
 import { Sky } from '@react-three/drei'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
@@ -12,52 +12,130 @@ import {
   ROCKS,
   REST_CAMP,
   sampleHeight,
+  scrubPositions,
   zoneAt,
   zoneColor,
 } from '@game-core/world/Heightmap'
 
 function Terrain() {
+  const dirtMap = useLoader(THREE.TextureLoader, '/textures/dirt_red.jpg')
+
   const geo = useMemo(() => {
-    const segs = 192
+    const segs = 256
     const size = MAP_HALF * 2
     const g = new THREE.PlaneGeometry(size, size, segs, segs)
     g.rotateX(-Math.PI / 2)
     const pos = g.attributes.position
     const colors = new Float32Array(pos.count * 3)
+    const uvs = g.attributes.uv
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i)
       const z = pos.getZ(i)
       const y = sampleHeight(x, z)
       pos.setY(i, y)
-      const [r, gch, b] = zoneColor(zoneAt(x, z))
-      // slight vertex noise
-      const n = (Math.sin(x * 0.1) + Math.cos(z * 0.1)) * 0.03
-      colors[i * 3] = r + n
-      colors[i * 3 + 1] = gch + n * 0.5
-      colors[i * 3 + 2] = b
+      uvs.setXY(i, x * 0.05, z * 0.05)
+      const [r, gc, b] = zoneColor(zoneAt(x, z))
+      const e = 0.5
+      const slope = Math.hypot(
+        sampleHeight(x + e, z) - sampleHeight(x - e, z),
+        sampleHeight(x, z + e) - sampleHeight(x, z - e),
+      )
+      const rockMix = Math.min(1, slope * 0.5)
+      colors[i * 3] = Math.min(1, r * 1.2 * (1 - rockMix * 0.1) + rockMix * 0.5)
+      colors[i * 3 + 1] = Math.min(1, gc * (1 - rockMix * 0.45) + rockMix * 0.22)
+      colors[i * 3 + 2] = Math.min(1, b * (1 - rockMix * 0.3) + rockMix * 0.12)
     }
     pos.needsUpdate = true
+    uvs.needsUpdate = true
     g.setAttribute('color', new THREE.BufferAttribute(colors, 3))
     g.computeVertexNormals()
     return g
   }, [])
 
+  useMemo(() => {
+    dirtMap.wrapS = dirtMap.wrapT = THREE.RepeatWrapping
+    dirtMap.anisotropy = 8
+    dirtMap.colorSpace = THREE.SRGBColorSpace
+  }, [dirtMap])
+
   return (
     <mesh geometry={geo} receiveShadow>
-      <meshStandardMaterial vertexColors roughness={0.92} metalness={0.04} />
+      <meshStandardMaterial map={dirtMap} vertexColors roughness={0.94} metalness={0.03} />
     </mesh>
   )
 }
 
 function Rocks() {
+  const rockMap = useLoader(THREE.TextureLoader, '/textures/rock_red.jpg')
+  useMemo(() => {
+    rockMap.wrapS = rockMap.wrapT = THREE.RepeatWrapping
+    rockMap.colorSpace = THREE.SRGBColorSpace
+  }, [rockMap])
+
   return (
     <group>
-      {ROCKS.map((r, i) => (
-        <mesh key={i} position={[r.x, sampleHeight(r.x, r.z) + r.height * 0.35, r.z]} castShadow>
-          <dodecahedronGeometry args={[r.radius * 0.95, 0]} />
-          <meshStandardMaterial color="#5a4030" roughness={0.95} flatShading />
-        </mesh>
-      ))}
+      {ROCKS.map((r, i) => {
+        const y = sampleHeight(r.x, r.z)
+        return (
+          <group key={i} position={[r.x, y, r.z]}>
+            <mesh position={[0, r.height * 0.35, 0]} castShadow rotation={[0.1, i * 0.7, 0.05]}>
+              <dodecahedronGeometry args={[r.radius * 1.05, 0]} />
+              <meshStandardMaterial
+                map={rockMap}
+                color="#c46838"
+                roughness={0.92}
+                flatShading
+              />
+            </mesh>
+            {r.height > 12 && (
+              <mesh position={[r.radius * 0.4, r.height * 0.55, -r.radius * 0.2]} rotation={[0, 1, 0.2]}>
+                <dodecahedronGeometry args={[r.radius * 0.55, 0]} />
+                <meshStandardMaterial map={rockMap} color="#a05028" roughness={0.95} flatShading />
+              </mesh>
+            )}
+          </group>
+        )
+      })}
+    </group>
+  )
+}
+
+function Scrub() {
+  const items = useMemo(() => scrubPositions(140), [])
+  return (
+    <group>
+      {items.map((s, i) => {
+        const y = sampleHeight(s.x, s.z)
+        if (s.kind === 'cactus') {
+          return (
+            <group key={i} position={[s.x, y, s.z]}>
+              <mesh position={[0, 1.1, 0]}>
+                <cylinderGeometry args={[0.18, 0.22, 2.2, 6]} />
+                <meshStandardMaterial color="#3d6b28" flatShading />
+              </mesh>
+              <mesh position={[0.45, 1.3, 0]} rotation={[0, 0, 0.9]}>
+                <cylinderGeometry args={[0.1, 0.12, 0.9, 5]} />
+                <meshStandardMaterial color="#3d6b28" flatShading />
+              </mesh>
+            </group>
+          )
+        }
+        if (s.kind === 'bone') {
+          return (
+            <mesh key={i} position={[s.x, y + 0.08, s.z]} rotation={[0.2, i, 0.1]}>
+              <capsuleGeometry args={[0.06, 0.7, 3, 6]} />
+              <meshStandardMaterial color="#d8c8a0" />
+            </mesh>
+          )
+        }
+        // scrub bush
+        return (
+          <mesh key={i} position={[s.x, y + 0.35, s.z]}>
+            <sphereGeometry args={[0.45 + (i % 3) * 0.12, 5, 4]} />
+            <meshStandardMaterial color="#5a4a22" flatShading />
+          </mesh>
+        )
+      })}
     </group>
   )
 }
@@ -66,19 +144,29 @@ function Campfire() {
   const y = sampleHeight(REST_CAMP.x, REST_CAMP.z)
   return (
     <group position={[REST_CAMP.x, y, REST_CAMP.z]}>
-      <mesh position={[0, 0.15, 0]}>
-        <cylinderGeometry args={[1.2, 1.4, 0.3, 10]} />
-        <meshStandardMaterial color="#3a2a1a" />
+      {/* ring of stones */}
+      {Array.from({ length: 8 }, (_, i) => {
+        const a = (i / 8) * Math.PI * 2
+        return (
+          <mesh key={i} position={[Math.cos(a) * 1.3, 0.12, Math.sin(a) * 1.3]}>
+            <dodecahedronGeometry args={[0.28, 0]} />
+            <meshStandardMaterial color="#6a4030" flatShading />
+          </mesh>
+        )
+      })}
+      <mesh position={[0, 0.7, 0]}>
+        <coneGeometry args={[0.5, 1.3, 7]} />
+        <meshStandardMaterial color="#ff6a18" emissive="#ff3a00" emissiveIntensity={1.1} />
       </mesh>
-      <mesh position={[0, 0.55, 0]}>
-        <coneGeometry args={[0.55, 1.1, 6]} />
-        <meshStandardMaterial color="#ff6a20" emissive="#ff4500" emissiveIntensity={0.85} />
+      <pointLight color="#ff8020" intensity={3.5} distance={28} position={[0, 1.4, 0]} />
+      {/* hide tent */}
+      <mesh position={[4.2, 1.35, 2.5]} rotation={[0, 0.4, 0]}>
+        <coneGeometry args={[2.4, 2.8, 4]} />
+        <meshStandardMaterial color="#7a5528" />
       </mesh>
-      <pointLight color="#ff7a30" intensity={2.2} distance={18} position={[0, 1.2, 0]} />
-      {/* inn tent stub */}
-      <mesh position={[3.5, 1.2, 2]}>
-        <coneGeometry args={[2.2, 2.4, 4]} />
-        <meshStandardMaterial color="#6b4a2a" />
+      <mesh position={[4.2, 0.2, 2.5]}>
+        <cylinderGeometry args={[2.3, 2.3, 0.15, 8]} />
+        <meshStandardMaterial color="#4a3218" />
       </mesh>
     </group>
   )
@@ -86,7 +174,6 @@ function Campfire() {
 
 function PlayerView() {
   const world = useGameStore((s) => s.world)
-  // KayKit barbarian: clean GLB + rich idle/run/attack clips; green tint ≈ orc
   return (
     <AnimatedModel
       url="/models/orc/kaykit_barbarian.glb"
@@ -102,7 +189,6 @@ function PlayerView() {
 
 function MobsView() {
   const world = useGameStore((s) => s.world)
-  // Stable list of ids — remount when spawn set changes via store sync count
   const mobIds = useGameStore((s) => [...s.world.mobs.keys()].join(','))
   const ids = mobIds.split(',').filter(Boolean).map(Number)
 
@@ -159,12 +245,12 @@ function PrimitiveMob({ id }: { id: number }) {
 function CameraRig() {
   const { camera } = useThree()
   const world = useGameStore((s) => s.world)
-  const pitch = useRef(-0.28)
-  const dist = useRef(10)
+  const pitch = useRef(-0.32)
+  const dist = useRef(12)
 
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
-      dist.current = THREE.MathUtils.clamp(dist.current + e.deltaY * 0.01, 0.1, 15)
+      dist.current = THREE.MathUtils.clamp(dist.current + e.deltaY * 0.01, 0.1, 18)
     }
     window.addEventListener('wheel', onWheel, { passive: true })
     ;(window as unknown as { __cwsPitch?: { current: number } }).__cwsPitch = pitch
@@ -186,12 +272,12 @@ function CameraRig() {
     }
     const ox = Math.sin(yaw) * -d
     const oz = Math.cos(yaw) * d
-    const oy = 2.5 + Math.sin(-pitch.current) * d * 0.35
+    const oy = 3.2 + Math.sin(-pitch.current) * d * 0.4
     camera.position.lerp(
       new THREE.Vector3(p.position.x + ox, p.position.y + oy, p.position.z + oz),
-      0.15,
+      0.12,
     )
-    camera.lookAt(p.position.x, p.position.y + 1.3, p.position.z)
+    camera.lookAt(p.position.x, p.position.y + 1.4, p.position.z)
   })
 
   return null
@@ -245,21 +331,29 @@ export function GameApp() {
   }, [start, started, input])
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#1a120c' }} data-testid="game-root">
+    <div style={{ width: '100vw', height: '100vh', background: '#2a1810' }} data-testid="game-root">
       <Canvas
         shadows={false}
         dpr={[1, 1.25]}
-        camera={{ fov: 60, near: 0.1, far: 800, position: [0, 8, 12] }}
-        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        camera={{ fov: 58, near: 0.1, far: 900, position: [0, 14, 18] }}
+        gl={{ antialias: true, powerPreference: 'high-performance', toneMapping: THREE.ACESFilmicToneMapping }}
       >
-        <color attach="background" args={['#6b8cae']} />
-        <fog attach="fog" args={['#c4a574', 60, 220]} />
-        <ambientLight intensity={0.7} />
-        <directionalLight intensity={1.2} position={[40, 60, 20]} />
-        <hemisphereLight args={['#b1e1ff', '#8a5a3c', 0.45]} />
-        <Sky sunPosition={[40, 20, 40]} turbidity={6} rayleigh={1.2} />
+        {/* Barrens heat haze sky */}
+        <color attach="background" args={['#c4a574']} />
+        <fog attach="fog" args={['#d2b48c', 45, 260]} />
+        <ambientLight intensity={0.55} color="#ffd2a0" />
+        <directionalLight intensity={1.55} position={[60, 80, 30]} color="#ffe0b0" />
+        <hemisphereLight args={['#f0c878', '#8a4020', 0.55]} />
+        <Sky
+          sunPosition={[80, 18, 40]}
+          turbidity={12}
+          rayleigh={0.6}
+          mieCoefficient={0.02}
+          mieDirectionalG={0.85}
+        />
         <Terrain />
         <Rocks />
+        <Scrub />
         <Campfire />
         <PlayerView />
         <MobsView />
