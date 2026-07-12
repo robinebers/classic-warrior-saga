@@ -76,21 +76,27 @@ function Rocks() {
     <group>
       {ROCKS.map((r, i) => {
         const y = sampleHeight(r.x, r.z)
+        // Sit the rock ON the ground: center at y + radius*0.55 so it embeds slightly
+        const embed = r.radius * 0.35
         return (
-          <group key={i} position={[r.x, y, r.z]}>
-            <mesh position={[0, r.height * 0.35, 0]} castShadow rotation={[0.1, i * 0.7, 0.05]}>
-              <dodecahedronGeometry args={[r.radius * 1.05, 0]} />
-              <meshStandardMaterial
-                map={rockMap}
-                color="#c46838"
-                roughness={0.92}
-                flatShading
-              />
+          <group key={i} position={[r.x, y - embed, r.z]}>
+            <mesh
+              position={[0, r.radius * 0.85, 0]}
+              castShadow
+              rotation={[0.15, i * 0.9, 0.08]}
+              scale={[1, 1.15 + (i % 3) * 0.15, 1]}
+            >
+              <dodecahedronGeometry args={[r.radius, 0]} />
+              <meshStandardMaterial map={rockMap} color="#d47840" roughness={0.9} flatShading />
             </mesh>
             {r.height > 12 && (
-              <mesh position={[r.radius * 0.4, r.height * 0.55, -r.radius * 0.2]} rotation={[0, 1, 0.2]}>
-                <dodecahedronGeometry args={[r.radius * 0.55, 0]} />
-                <meshStandardMaterial map={rockMap} color="#a05028" roughness={0.95} flatShading />
+              <mesh
+                position={[r.radius * 0.55, r.radius * 1.4, -r.radius * 0.25]}
+                rotation={[0.2, 1.2, 0.3]}
+                scale={[0.7, 1.1, 0.65]}
+              >
+                <dodecahedronGeometry args={[r.radius * 0.7, 0]} />
+                <meshStandardMaterial map={rockMap} color="#b06030" roughness={0.93} flatShading />
               </mesh>
             )}
           </group>
@@ -144,30 +150,40 @@ function Campfire() {
   const y = sampleHeight(REST_CAMP.x, REST_CAMP.z)
   return (
     <group position={[REST_CAMP.x, y, REST_CAMP.z]}>
-      {/* ring of stones */}
       {Array.from({ length: 8 }, (_, i) => {
         const a = (i / 8) * Math.PI * 2
         return (
-          <mesh key={i} position={[Math.cos(a) * 1.3, 0.12, Math.sin(a) * 1.3]}>
-            <dodecahedronGeometry args={[0.28, 0]} />
+          <mesh key={i} position={[Math.cos(a) * 1.35, 0.1, Math.sin(a) * 1.35]}>
+            <dodecahedronGeometry args={[0.25, 0]} />
             <meshStandardMaterial color="#6a4030" flatShading />
           </mesh>
         )
       })}
-      <mesh position={[0, 0.7, 0]}>
-        <coneGeometry args={[0.5, 1.3, 7]} />
-        <meshStandardMaterial color="#ff6a18" emissive="#ff3a00" emissiveIntensity={1.1} />
+      {/* logs */}
+      <mesh position={[0, 0.18, 0]} rotation={[0.2, 0.4, 0.1]}>
+        <cylinderGeometry args={[0.12, 0.14, 1.4, 6]} />
+        <meshStandardMaterial color="#3a2210" />
       </mesh>
-      <pointLight color="#ff8020" intensity={3.5} distance={28} position={[0, 1.4, 0]} />
+      <mesh position={[0, 0.22, 0]} rotation={[-0.15, -0.6, 0.2]}>
+        <cylinderGeometry args={[0.1, 0.12, 1.2, 6]} />
+        <meshStandardMaterial color="#4a2a12" />
+      </mesh>
+      <mesh position={[0, 0.55, 0]}>
+        <coneGeometry args={[0.35, 0.9, 7]} />
+        <meshStandardMaterial color="#ff6a18" emissive="#ff3a00" emissiveIntensity={1.2} />
+      </mesh>
+      <pointLight color="#ff8020" intensity={2.8} distance={22} position={[0, 1.1, 0]} />
       {/* hide tent */}
-      <mesh position={[4.2, 1.35, 2.5]} rotation={[0, 0.4, 0]}>
-        <coneGeometry args={[2.4, 2.8, 4]} />
-        <meshStandardMaterial color="#7a5528" />
-      </mesh>
-      <mesh position={[4.2, 0.2, 2.5]}>
-        <cylinderGeometry args={[2.3, 2.3, 0.15, 8]} />
-        <meshStandardMaterial color="#4a3218" />
-      </mesh>
+      <group position={[4.5, 0, 2.8]} rotation={[0, 0.5, 0]}>
+        <mesh position={[0, 1.2, 0]}>
+          <coneGeometry args={[2.2, 2.6, 4]} />
+          <meshStandardMaterial color="#8a6030" />
+        </mesh>
+        <mesh position={[0, 0.08, 0]}>
+          <cylinderGeometry args={[2.15, 2.15, 0.12, 8]} />
+          <meshStandardMaterial color="#4a3018" />
+        </mesh>
+      </group>
     </group>
   )
 }
@@ -227,18 +243,38 @@ function MobsView() {
 
 function PrimitiveMob({ id }: { id: number }) {
   const world = useGameStore((s) => s.world)
-  const ref = useRef<THREE.Mesh>(null)
+  const ref = useRef<THREE.Group>(null)
   useFrame(() => {
     const m = world.mobs.get(id)
     if (!ref.current || !m) return
     ref.current.visible = m.alive || m.anim === 'death'
-    ref.current.position.set(m.position.x, m.position.y + 0.5, m.position.z)
+    ref.current.position.set(m.position.x, m.position.y, m.position.z)
+    ref.current.rotation.y = m.yaw
   })
+  // Temporary scorpid stand-in until Classic GLB lands
   return (
-    <mesh ref={ref} castShadow>
-      <sphereGeometry args={[0.55, 12, 10]} />
-      <meshStandardMaterial color="#c45c1a" />
-    </mesh>
+    <group ref={ref}>
+      <mesh position={[0, 0.35, 0]} castShadow>
+        <capsuleGeometry args={[0.35, 0.6, 4, 8]} />
+        <meshStandardMaterial color="#b85a18" roughness={0.7} />
+      </mesh>
+      <mesh position={[0.55, 0.45, 0]} rotation={[0, 0, -0.6]}>
+        <coneGeometry args={[0.12, 0.7, 5]} />
+        <meshStandardMaterial color="#8a4010" />
+      </mesh>
+      {[ -0.4, -0.1, 0.2 ].map((z, i) => (
+        <group key={i}>
+          <mesh position={[-0.35, 0.15, z]} rotation={[0, 0, 0.5]}>
+            <cylinderGeometry args={[0.04, 0.04, 0.55, 4]} />
+            <meshStandardMaterial color="#6a3010" />
+          </mesh>
+          <mesh position={[0.35, 0.15, z]} rotation={[0, 0, -0.5]}>
+            <cylinderGeometry args={[0.04, 0.04, 0.55, 4]} />
+            <meshStandardMaterial color="#6a3010" />
+          </mesh>
+        </group>
+      ))}
+    </group>
   )
 }
 
