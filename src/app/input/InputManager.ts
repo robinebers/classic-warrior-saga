@@ -13,6 +13,11 @@ export class InputManager {
     if (e.code === 'KeyT') this._toggleAA = true
     if (e.code === 'Space') this._jump = true
     if (e.code === 'Backquote') this.openConsole()
+    const abilityKeys: Record<string, number> = {
+      Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5,
+      Digit7: 6, Digit8: 7, Digit9: 8, Digit0: 9, Minus: 10, Equal: 11,
+    }
+    if (e.code in abilityKeys) this._abilitySlot = abilityKeys[e.code]
   }
   private onKeyUp = (e: KeyboardEvent) => {
     this.keys.delete(e.code)
@@ -45,6 +50,7 @@ export class InputManager {
   private _toggleAA = false
   private _jump = false
   private _yawDelta = 0
+  private _abilitySlot: number | null = null
 
   attach(): void {
     window.addEventListener('keydown', this.onKeyDown)
@@ -96,6 +102,10 @@ export class InputManager {
     if (this._toggleAA) {
       world.queueIntent({ type: 'toggleAutoAttack' })
       this._toggleAA = false
+    }
+    if (this._abilitySlot != null) {
+      world.queueIntent({ type: 'useAbility', slot: this._abilitySlot })
+      this._abilitySlot = null
     }
   }
 

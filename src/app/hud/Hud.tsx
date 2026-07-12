@@ -28,6 +28,19 @@ export function Hud() {
     return fill
   })
 
+  const labels: Record<string, string> = {
+    attack: 'ATK',
+    heroic_strike: 'HS',
+    battle_shout: 'BS',
+    charge: 'CHG',
+    rend: 'RND',
+    thunder_clap: 'TC',
+    hamstring: 'HSG',
+    bloodrage: 'BR',
+    overpower: 'OP',
+    execute: 'EXE',
+  }
+
   return (
     <div className="hud-root" data-testid="hud-root">
       {hud.errorText && (
@@ -91,7 +104,11 @@ export function Hud() {
         ))}
       </div>
 
-      <div className="xp-bar" data-testid="xp-bar" title={`XP: ${hud.xp}/${xpNeed}`}>
+      <div
+        className={`xp-bar ${hud.rested ? 'rested' : ''}`}
+        data-testid="xp-bar"
+        title={`XP: ${hud.xp}/${xpNeed}  Rested: ${hud.restedXp}`}
+      >
         {bubbles.map((f, i) => (
           <div key={i} className="xp-bubble">
             <div style={{ width: `${f * 100}%` }} />
@@ -100,12 +117,15 @@ export function Hud() {
       </div>
 
       <div className="action-bar" data-testid="action-bar">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='].map((k, i) => (
-          <div key={k} className="action-slot" data-testid={`action-slot-${i + 1}`}>
-            <span className="key">{k}</span>
-            <span className="icon">{i === 0 ? 'ATK' : i === 1 ? 'HS' : ''}</span>
-          </div>
-        ))}
+        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='].map((k, i) => {
+          const id = world.actionBar[i] || ''
+          return (
+            <div key={k} className="action-slot" data-testid={`action-slot-${i + 1}`}>
+              <span className="key">{k}</span>
+              <span className="icon">{labels[id] || ''}</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

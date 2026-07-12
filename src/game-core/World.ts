@@ -17,6 +17,14 @@ import {
   xpToLevel,
 } from './Formulas'
 import { applyGlanceMultiplier, rollMobAttack, rollPlayerAttack } from './combat/AttackTable'
+import {
+  createAbilityRuntime,
+  defaultActionBar,
+  tickAbilityRuntime,
+  tryCast,
+  type AbilityRuntime,
+} from './abilities/AbilityEngine'
+import { ABILITIES } from './abilities/AbilityData'
 import type { EntityId } from './types'
 import { EventBus, type Stance, type Vec3 } from './types'
 
@@ -85,6 +93,7 @@ export type Intent =
   | { type: 'clearTarget' }
   | { type: 'toggleAutoAttack' }
   | { type: 'useAbility'; slot: number }
+  | { type: 'useAbilityId'; abilityId: string }
   | { type: 'debug'; cmd: string; args: string[] }
 
 export const TICK_DT = 1 / 20
@@ -143,6 +152,19 @@ export function createPlayer(name = 'Thrakmar'): PlayerState {
   }
 }
 
+function learnAvailable(player: PlayerState): void {
+  for (const def of ABILITIES) {
+    const known = player.knownAbilities[def.id] ?? 0
+    let best = known
+    for (const r of def.ranks) {
+      if (r.learnLevel <= player.level && r.rank > best) best = r.rank
+    }
+    if (best > known) {
+      player.knownAbilities[def.id] = best
+    }
+  }
+}
+
 export type WorldOptions = { seed?: number }
 
 export class World {
@@ -163,6 +185,8 @@ export class World {
     turn: 0,
   }
   private attackAnimT = 0
+  abilityRt: AbilityRuntime = createAbilityRuntime()
+  actionBar: string[] = defaultActionBar()
   tickCount = 0
   timescale = 1
 
@@ -170,6 +194,7 @@ export class World {
     this.rng = new SplitMix64(opts.seed ?? 42)
     resetIdCounter(1)
     this.player = createPlayer('Thrakmar')
+    learnAvailable(this.player)
   }
 
   queueIntent(i: Intent): void {
@@ -224,7 +249,9 @@ export class World {
     this.applyMovement(dt)
     this.updateMobs(dt)
     this.updateCombat(dt)
+    this.tickAuras(dt)
     this.decayRage(dt)
+    tickAbilityRuntime(this.abilityRt, dt)
     if (this.attackAnimT > 0) {
       this.attackAnimT -= dt
       if (this.attackAnimT <= 0 && this.player.anim === 'attack') {
@@ -265,6 +292,17 @@ export class World {
             text: this.autoAttack ? 'Auto Attack On' : 'Auto Attack Off',
           })
           break
+        case 'useAbility': {
+          const id = this.actionBar[i.slot]
+          if (id && id !== 'attack') this.castAbility(id)
+          else if (id === 'attack') {
+            this.autoAttack = true
+          }
+          break
+        }
+        case 'useAbilityId':
+          this.castAbility(i.abilityId)
+          break
         case 'debug':
           this.runDebug(i.cmd, i.args)
           break
@@ -272,6 +310,228 @@ export class World {
           break
       }
     }
+  }
+
+  castAbility(abilityId: string): void {
+    const p = this.player
+    const target = p.targetId != null ? this.mobs.get(p.targetId) : undefined
+    const result = tryCast(this.abilityRt, abilityId, {
+      level: p.level,
+      rage: p.rage,
+      stance: p.stance,
+      inCombat: p.inCombat,
+      known: p.knownAbilities,
+      targetHpPct: target ? target.health / target.maxHealth : null,
+      hasShield: false,
+    })
+    if (!result.ok) {
+      this.abilityRt.error = result.error
+      this.events.push({ type: 'chat', channel: 'error', text: result.error })
+      return
+    }
+    this.abilityRt.error = null
+    if (result.queueNextSwing) {
+      this.events.push({
+        type: 'chat',
+        channel: 'system',
+        text: `${result.def.name} Queued.`,
+      })
+      return
+    }
+
+    if (result.consumeAllRage) {
+      const extra = Math.max(0, p.rage - result.consumeRage)
+      p.rage = 0
+      this.resolveYellowHit(result.def.id, result.rank.effect + extra * (result.rank.effect2 ?? 0))
+    } else {
+      p.rage = Math.max(0, p.rage - result.consumeRage)
+      this.applyAbilityEffect(result.def.id, result.rank)
+    }
+  }
+
+  private applyAbilityEffect(id: string, rank: { effect: number; durationSec?: number; rageGen?: number }): void {
+    const p = this.player
+    const target = p.targetId != null ? this.mobs.get(p.targetId) : undefined
+    switch (id) {
+      case 'battle_shout':
+        this.abilityRt.auras = this.abilityRt.auras.filter((a) => a.id !== 'battle_shout')
+        this.abilityRt.auras.push({
+          id: 'battle_shout',
+          name: 'Battle Shout',
+          remaining: rank.durationSec ?? 120,
+          tickEvery: 999,
+          tickAcc: 0,
+          stacks: 1,
+          apBonus: rank.effect,
+          source: 'player',
+          targetId: p.id,
+        })
+        p.ap = attackPower(p.str, p.level) + rank.effect
+        this.events.push({ type: 'chat', channel: 'combat', text: 'You Gain Battle Shout.' })
+        break
+      case 'charge': {
+        if (!target || !target.alive) {
+          this.events.push({ type: 'chat', channel: 'error', text: 'Invalid Target' })
+          return
+        }
+        const d = Math.sqrt(distSq(p.position, target.position))
+        if (d < 8 || d > 25) {
+          this.events.push({ type: 'chat', channel: 'error', text: 'Out Of Range.' })
+          return
+        }
+        // snap toward target
+        const dx = target.position.x - p.position.x
+        const dz = target.position.z - p.position.z
+        const len = Math.hypot(dx, dz) || 1
+        p.position.x = target.position.x - (dx / len) * 2
+        p.position.z = target.position.z - (dz / len) * 2
+        p.yaw = Math.atan2(dx, -dz)
+        p.rage = Math.min(100, p.rage + (rank.rageGen ?? 9))
+        p.inCombat = true
+        target.aggroTarget = p.id
+        this.autoAttack = true
+        this.events.push({
+          type: 'chat',
+          channel: 'combat',
+          text: `You Charge ${target.name}.`,
+        })
+        break
+      }
+      case 'rend': {
+        if (!target || !target.alive) {
+          this.events.push({ type: 'chat', channel: 'error', text: 'Invalid Target' })
+          return
+        }
+        const dur = rank.durationSec ?? 9
+        this.abilityRt.auras = this.abilityRt.auras.filter(
+          (a) => !(a.id === 'rend' && a.targetId === target.id),
+        )
+        this.abilityRt.auras.push({
+          id: 'rend',
+          name: 'Rend',
+          remaining: dur,
+          tickEvery: 3,
+          tickAcc: 0,
+          stacks: 1,
+          totalDamage: rank.effect,
+          source: 'player',
+          targetId: target.id,
+        })
+        this.events.push({
+          type: 'chat',
+          channel: 'combat',
+          text: `You Cast Rend On ${target.name}.`,
+        })
+        break
+      }
+      case 'thunder_clap': {
+        let hits = 0
+        for (const m of this.mobs.values()) {
+          if (!m.alive) continue
+          if (Math.sqrt(distSq(p.position, m.position)) > 8) continue
+          const dmg = Math.max(1, rank.effect)
+          m.health -= dmg
+          hits++
+          if (m.health <= 0) this.killMob(m)
+        }
+        this.events.push({
+          type: 'chat',
+          channel: 'combat',
+          text: `Your Thunder Clap Hits ${hits} Enemies.`,
+        })
+        p.anim = 'attack'
+        this.attackAnimT = 0.5
+        break
+      }
+      case 'bloodrage': {
+        const costHp = Math.floor(p.maxHealth * 0.16)
+        p.health = Math.max(1, p.health - costHp)
+        p.rage = Math.min(100, p.rage + 10)
+        p.inCombat = true
+        this.abilityRt.auras.push({
+          id: 'bloodrage',
+          name: 'Bloodrage',
+          remaining: 10,
+          tickEvery: 1,
+          tickAcc: 0,
+          stacks: 1,
+          source: 'player',
+          targetId: p.id,
+        })
+        this.events.push({ type: 'chat', channel: 'combat', text: 'You Activate Bloodrage.' })
+        break
+      }
+      case 'hamstring':
+      case 'overpower':
+        this.resolveYellowHit(id, rank.effect)
+        if (id === 'overpower') this.abilityRt.overpowerWindow = 0
+        break
+      default:
+        this.resolveYellowHit(id, rank.effect)
+    }
+  }
+
+  private resolveYellowHit(abilityId: string, bonus: number): void {
+    const p = this.player
+    const target = p.targetId != null ? this.mobs.get(p.targetId) : undefined
+    if (!target || !target.alive) {
+      this.events.push({ type: 'chat', channel: 'error', text: 'Invalid Target' })
+      return
+    }
+    let dmg = weaponSwingDamage(
+      p.weaponMin,
+      p.weaponMax,
+      p.weaponSpeed,
+      p.ap,
+      this.rng.nextFloat(),
+    ) + bonus
+    if (this.rng.chance(p.critPct)) dmg *= 2
+    const dr = armorDR(target.armor, p.level)
+    dmg = Math.max(1, Math.floor(dmg * (1 - dr)))
+    target.health -= dmg
+    p.inCombat = true
+    p.anim = 'attack'
+    this.attackAnimT = 0.55
+    const name = ABILITIES.find((a) => a.id === abilityId)?.name ?? abilityId
+    this.events.push({
+      type: 'meleeHit',
+      source: p.id,
+      target: target.id,
+      damage: dmg,
+      outcome: 'hit',
+      yellow: true,
+    })
+    this.events.push({
+      type: 'chat',
+      channel: 'combat',
+      text: `Your ${name} Hits ${target.name} For ${dmg}.`,
+    })
+    if (target.health <= 0) this.killMob(target)
+  }
+
+  private tickAuras(dt: number): void {
+    for (const a of this.abilityRt.auras) {
+      if (a.id === 'rend' && a.tickAcc >= a.tickEvery) {
+        a.tickAcc = 0
+        const ticks = Math.max(1, Math.round((a.remaining + a.tickEvery) / a.tickEvery))
+        const tickDmg = Math.max(1, Math.floor((a.totalDamage ?? 0) / Math.max(1, ticks)))
+        const mob = this.mobs.get(a.targetId)
+        if (mob && mob.alive) {
+          mob.health -= tickDmg
+          this.events.push({
+            type: 'chat',
+            channel: 'combat',
+            text: `${mob.name} Suffers ${tickDmg} From Your Rend.`,
+          })
+          if (mob.health <= 0) this.killMob(mob)
+        }
+      }
+      if (a.id === 'bloodrage' && a.tickAcc >= 1) {
+        a.tickAcc = 0
+        this.player.rage = Math.min(100, this.player.rage + 1)
+      }
+    }
+    void dt
   }
 
   private applyMovement(dt: number): void {
@@ -389,13 +649,22 @@ export class World {
 
   private resolvePlayerSwing(target: MobState): void {
     const p = this.player
+    const queued = this.abilityRt.nextSwingAbility
+    const yellow = queued === 'heroic_strike'
+    if (queued && yellow) {
+      const cost = 15
+      if (p.rage < cost) {
+        this.abilityRt.nextSwingAbility = null
+      }
+    }
+
     const defense = target.level * 5
     const skill = p.weaponSkillAxes2H
     const skillDiff = defense - skill
     const outcome = rollPlayerAttack(this.rng, {
       skillDiff,
       sheetCritPct: p.critPct,
-      white: true,
+      white: !yellow,
       mobLevel: target.level,
       playerLevel: p.level,
       weaponSkill: skill,
@@ -409,10 +678,11 @@ export class World {
     this.events.push({ type: 'anim', entity: p.id, clip: 'attack' })
 
     if (outcome === 'miss' || outcome === 'dodge' || outcome === 'parry' || outcome === 'block') {
+      if (outcome === 'dodge') this.abilityRt.overpowerWindow = 5
       this.events.push({
         type: 'chat',
         channel: 'combat',
-        text: `Your Auto Attack ${outcome === 'miss' ? 'Misses' : `Is ${titleCase(outcome)}ed By`} ${target.name}.`,
+        text: `Your ${yellow ? 'Heroic Strike' : 'Auto Attack'} ${outcome === 'miss' ? 'Misses' : `Is ${titleCase(outcome)}ed By`} ${target.name}.`,
       })
       this.events.push({
         type: 'meleeHit',
@@ -420,9 +690,19 @@ export class World {
         target: target.id,
         damage: 0,
         outcome,
-        yellow: false,
+        yellow,
       })
+      if (yellow) this.abilityRt.nextSwingAbility = null
       return
+    }
+
+    let bonus = 0
+    if (yellow && this.abilityRt.nextSwingAbility === 'heroic_strike') {
+      const rank = p.knownAbilities.heroic_strike ?? 1
+      const def = ABILITIES.find((a) => a.id === 'heroic_strike')
+      bonus = def?.ranks.find((r) => r.rank === rank)?.effect ?? 11
+      p.rage = Math.max(0, p.rage - 15)
+      this.abilityRt.nextSwingAbility = null
     }
 
     let dmg = weaponSwingDamage(
@@ -431,7 +711,7 @@ export class World {
       p.weaponSpeed,
       p.ap,
       this.rng.nextFloat(),
-    )
+    ) + bonus
     if (outcome === 'glancing') {
       dmg = applyGlanceMultiplier(dmg, target.level - p.level)
     }
@@ -442,22 +722,25 @@ export class World {
     target.health -= dmg
     p.inCombat = true
     this.outOfCombatTimer = 0
-    const rage = rageFromDealing(dmg, p.level)
-    p.rage = Math.min(100, p.rage + rage)
-    this.events.push({ type: 'rageChanged', entity: p.id, rage: p.rage, delta: rage })
+    if (!yellow) {
+      const rage = rageFromDealing(dmg, p.level)
+      p.rage = Math.min(100, p.rage + rage)
+      this.events.push({ type: 'rageChanged', entity: p.id, rage: p.rage, delta: rage })
+    }
     this.events.push({
       type: 'meleeHit',
       source: p.id,
       target: target.id,
       damage: dmg,
       outcome,
-      yellow: false,
+      yellow,
     })
     const verb = outcome === 'crit' ? 'Crits' : 'Hits'
+    const label = yellow ? 'Heroic Strike' : 'Auto Attack'
     this.events.push({
       type: 'chat',
       channel: 'combat',
-      text: `Your Auto Attack ${verb} ${target.name} For ${dmg}${outcome === 'crit' ? '!' : '.'}`,
+      text: `Your ${label} ${verb} ${target.name} For ${dmg}${outcome === 'crit' ? '!' : '.'}`,
     })
     if (target.health <= 0) this.killMob(target)
   }
@@ -634,6 +917,7 @@ export class World {
     this.player.armor = 36 + stats.agi * 2
     this.player.weaponSkillAxes2H = 5 * level + 5
     if (level >= 6) this.player.parryUnlocked = true
+    learnAvailable(this.player)
     // starter 2H feel after first ding quest would replace — bump weapon a bit by level
     this.player.weaponMin = 2 + Math.floor(level * 0.8)
     this.player.weaponMax = 4 + Math.floor(level * 1.2)
@@ -644,6 +928,13 @@ export class World {
       channel: 'system',
       text: `Congratulations, You Have Reached Level ${level}!`,
     })
+    if (ABILITIES.some((a) => a.ranks.some((r) => r.learnLevel === level))) {
+      this.events.push({
+        type: 'chat',
+        channel: 'system',
+        text: 'New Ability Available At Your Trainer!',
+      })
+    }
   }
 }
 

@@ -6,6 +6,8 @@ type HudSnapshot = {
   level: number
   xp: number
   xpToLevel: number
+  restedXp: number
+  rested: boolean
   health: number
   maxHealth: number
   rage: number
@@ -33,6 +35,8 @@ function emptyHud(): HudSnapshot {
     level: 1,
     xp: 0,
     xpToLevel: 400,
+    restedXp: 0,
+    rested: false,
     health: 80,
     maxHealth: 80,
     rage: 0,
@@ -62,6 +66,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         level: p.level,
         xp: p.xp,
         xpToLevel: p.level >= 60 ? 0 : requireXp(p.level),
+        restedXp: Math.floor(p.restedXp),
+        rested: p.restedXp > 0,
         health: Math.floor(p.health),
         maxHealth: p.maxHealth,
         rage: Math.floor(p.rage),
@@ -77,6 +83,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (e.type === 'chat') get().pushChat(e.channel, e.text)
       if (e.type === 'levelUp') get().setError(null)
     }
+    const err = get().world.abilityRt.error
+    if (err) get().setError(err)
     get().syncFromWorld()
   },
   start: () => {
