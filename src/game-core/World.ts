@@ -62,6 +62,7 @@ export type PlayerState = {
   weaponMax: number
   weaponSpeed: number
   parryUnlocked: boolean
+  talents: Record<string, number>
 }
 
 export type MobState = {
@@ -149,6 +150,7 @@ export function createPlayer(name = 'Thrakmar'): PlayerState {
     weaponMax: 4,
     weaponSpeed: 1.9,
     parryUnlocked: false,
+    talents: {},
   }
 }
 
