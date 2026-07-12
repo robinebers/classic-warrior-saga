@@ -1,0 +1,55 @@
+.title-root {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(ellipse at center, #3a2a18 0%, #120e0a 70%),
+    #0d0a08;
+  z-index: 20;
+  font-family: Georgia, 'Cinzel', serif;
+  color: #f0e6d2;
+}
+.title-panel {
+  text-align: center;
+  border: 3px solid #c9a227;
+  background: #1a140fee;
+  padding: 48px 64px;
+  box-shadow: 0 12px 40px #000c;
+  min-width: 420px;
+}
+.title-panel h1 {
+  margin: 0 0 8px;
+  font-size: 36px;
+  letter-spacing: 1px;
+  color: #ffd100;
+  text-shadow: 0 2px 0 #000;
+}
+.subtitle {
+  margin: 0 0 28px;
+  opacity: 0.85;
+  font-size: 14px;
+}
+.title-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.title-buttons button {
+  font: inherit;
+  font-size: 18px;
+  padding: 12px 20px;
+  background: linear-gradient(180deg, #3a2f1e, #1a140f);
+  border: 2px solid #c9a227;
+  color: #f0e6d2;
+  cursor: pointer;
+}
+.title-buttons button:hover {
+  background: linear-gradient(180deg, #4a3f2e, #2a2418);
+}
+.ver {
+  margin-top: 24px;
+  font-size: 11px;
+  opacity: 0.55;
+}
