@@ -1,0 +1,23 @@
+CWS model attribution (runtime copies under public/models/)
+
+Orc player (runtime)
+  Primary: KayKit Adventurers — Barbarian.glb (CC0) with green skin tint
+    https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0
+    Path: public/models/orc/kaykit_barbarian.glb
+  Alternate: OpenGameArt — “Orc (3D)” by Guillaume "GuieA_7" Englert (CC-BY-SA)
+    https://opengameart.org/content/orc-3d
+    Path: public/models/orc/classic_orc.glb
+
+Boar / pig (bootstrap)
+  Source: Quaternius — LowPoly Animated Farm Animal Pack (pig)
+  License: CC0
+  https://opengameart.org/content/lowpoly-animated-farm-animal-pack
+  Path: public/models/boar/pig.glb (Idle/Walk/Run/Death clips)
+
+Classic-look exports (gitignored sources)
+  Assets/External/wow/ — wow.export / Hive Workshop conversions (local only, never commit)
+
+UI / icons / textures
+  Kenney Fantasy UI Borders — CC0
+  game-icons.net — CC BY 3.0 (credit authors in README)
+  ambientCG / Poly Haven — CC0

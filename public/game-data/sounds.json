@@ -1,0 +1,75 @@
+{
+  "pools": {
+    "swing.whoosh": [
+      "Sounds/Swing1.ogg",
+      "Sounds/Swing2.ogg",
+      "Sounds/Swing3.ogg",
+      "Sounds/Swing4.ogg"
+    ],
+    "hit.axe2h": [
+      "Sounds/Weapons/Axes_2H/Hit1.ogg",
+      "Sounds/Weapons/Axes_2H/Hit2.ogg",
+      "Sounds/Weapons/Axes_2H/Hit3.ogg",
+      "Sounds/Weapons/Axes_2H/Hit4.ogg",
+      "Sounds/Weapons/Axes_2H/Hit5.ogg",
+      "Sounds/Weapons/Axes_2H/Hit6.ogg",
+      "Sounds/Weapons/Axes_2H/Hit7.ogg",
+      "Sounds/Weapons/Axes_2H/Hit8.ogg",
+      "Sounds/Weapons/Axes_2H/Hit9.ogg",
+      "Sounds/Weapons/Axes_2H/Hit10.ogg"
+    ],
+    "hit.mace2h": [
+      "Sounds/Weapons/Maces_2H/Hit1.ogg",
+      "Sounds/Weapons/Maces_2H/Hit2.ogg",
+      "Sounds/Weapons/Maces_2H/Hit3.ogg",
+      "Sounds/Weapons/Maces_2H/Hit4.ogg",
+      "Sounds/Weapons/Maces_2H/Hit5.ogg",
+      "Sounds/Weapons/Maces_2H/Hit6.ogg",
+      "Sounds/Weapons/Maces_2H/Hit7.ogg",
+      "Sounds/Weapons/Maces_2H/Hit8.ogg",
+      "Sounds/Weapons/Maces_2H/Hit9.ogg",
+      "Sounds/Weapons/Maces_2H/Hit10.ogg"
+    ],
+    "hit.sword2h": [
+      "Sounds/Weapons/Swords_2H/Hit1.ogg",
+      "Sounds/Weapons/Swords_2H/Hit2.ogg",
+      "Sounds/Weapons/Swords_2H/Hit3.ogg",
+      "Sounds/Weapons/Swords_2H/Hit4.ogg",
+      "Sounds/Weapons/Swords_2H/Hit5.ogg",
+      "Sounds/Weapons/Swords_2H/Hit6.ogg",
+      "Sounds/Weapons/Swords_2H/Hit7.ogg",
+      "Sounds/Weapons/Swords_2H/Hit8.ogg",
+      "Sounds/Weapons/Swords_2H/Hit9.ogg",
+      "Sounds/Weapons/Swords_2H/Hit10.ogg"
+    ]
+  },
+  "events": {
+    "melee.hit": { "poolByWeapon": true, "bus": "sfx", "spatial": true },
+    "ability.rend.apply": { "files": ["Sounds/Rend.ogg"], "bus": "sfx" },
+    "ability.thunder_clap": {
+      "files": ["Sounds/ThunderClap.ogg", "Sounds/Lightning.ogg"],
+      "bus": "sfx",
+      "layer": true
+    },
+    "ability.revenge": { "files": ["Sounds/Revenge.ogg"], "bus": "sfx" },
+    "ability.whirlwind": {
+      "files": ["Sounds/Whirlwind.ogg", "Sounds/Decisive.ogg"],
+      "bus": "sfx",
+      "layer": true
+    },
+    "ability.execute": { "files": ["Sounds/FireShield.ogg"], "bus": "sfx" },
+    "ability.cleave": { "files": ["Sounds/Cleave.ogg"], "bus": "sfx" },
+    "player.levelup": {
+      "files": ["Sounds/FireCast.ogg", "Sounds/Lightning.ogg"],
+      "bus": "sfx",
+      "layer": true
+    },
+    "music.zone.main": {
+      "files": ["Sounds/World_Of_Warcraft_-_Barrens_KLICKAUD.mp3"],
+      "bus": "music",
+      "loop": true,
+      "gainDb": -12
+    },
+    "player.death": { "files": ["Sounds/DeathCoil.ogg"], "bus": "sfx" }
+  }
+}

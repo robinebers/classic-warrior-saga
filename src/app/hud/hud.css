@@ -1,0 +1,206 @@
+.hud-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: 'Segoe UI', Cinzel, Georgia, serif;
+  color: #f0e6d2;
+  user-select: none;
+}
+
+.hud-error {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #ff4040;
+  font-weight: 700;
+  text-shadow: 0 0 4px #000;
+  font-size: 18px;
+}
+
+.unit-frames {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  gap: 12px;
+}
+
+.unit-frame {
+  display: flex;
+  gap: 8px;
+  background: linear-gradient(180deg, #2a2118ee, #1a140fee);
+  border: 2px solid #c9a227;
+  border-radius: 4px;
+  padding: 8px;
+  min-width: 220px;
+  box-shadow: 0 4px 16px #000a;
+}
+
+.portrait {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #c9a227;
+  background: #3d7a3a;
+}
+.portrait.mob {
+  background: #6b4423;
+}
+
+.frame-body {
+  flex: 1;
+}
+.name-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.level-badge {
+  background: #1a1208;
+  border: 1px solid #c9a227;
+  border-radius: 3px;
+  padding: 0 5px;
+  font-size: 12px;
+}
+
+.bar {
+  position: relative;
+  height: 14px;
+  background: #111;
+  border: 1px solid #554422;
+  margin-bottom: 3px;
+  overflow: hidden;
+}
+.bar > div {
+  height: 100%;
+  background: #22aa33;
+}
+.bar.rage > div {
+  background: #cc2222;
+}
+.bar span {
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  font-size: 10px;
+  line-height: 14px;
+  text-shadow: 0 0 2px #000;
+}
+
+.minimap {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 3px solid #c9a227;
+  background: radial-gradient(circle at 40% 40%, #6a8a4a, #3a4a2a 70%, #1a1a10);
+  box-shadow: 0 4px 16px #000a;
+  overflow: hidden;
+}
+.minimap-label {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 10px;
+  background: #0008;
+  padding: 2px;
+}
+.minimap-dot {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 6px;
+  height: 6px;
+  margin: -3px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.fps {
+  position: absolute;
+  top: 168px;
+  right: 24px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.chat {
+  position: absolute;
+  left: 16px;
+  bottom: 110px;
+  width: 420px;
+  max-height: 180px;
+  overflow: hidden;
+  font-size: 12px;
+  text-shadow: 1px 1px 2px #000;
+}
+.chat-line.system {
+  color: #ffd100;
+}
+.chat-line.combat {
+  color: #c0c0c0;
+}
+.chat-line.error {
+  color: #ff4040;
+}
+
+.xp-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 78px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  width: min(720px, 80vw);
+}
+.xp-bubble {
+  flex: 1;
+  height: 10px;
+  background: #1a1020;
+  border: 1px solid #553388;
+  overflow: hidden;
+}
+.xp-bubble > div {
+  height: 100%;
+  background: linear-gradient(180deg, #9b59d0, #6b2fa0);
+}
+
+.action-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 4px;
+  pointer-events: auto;
+}
+.action-slot {
+  width: 42px;
+  height: 42px;
+  background: #1a140f;
+  border: 2px solid #c9a227;
+  border-radius: 3px;
+  position: relative;
+  box-shadow: inset 0 0 8px #000;
+}
+.action-slot .key {
+  position: absolute;
+  left: 2px;
+  top: 0;
+  font-size: 9px;
+  color: #ddd;
+}
+.action-slot .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 10px;
+  color: #e8c96a;
+}
