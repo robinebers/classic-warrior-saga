@@ -3,6 +3,7 @@ import { useGameStore } from '../store'
 import { xpToLevel } from '@game-core/Formulas'
 import { TalentPanel } from './TalentPanel'
 import { TrainerPanel } from './TrainerPanel'
+import { QuestPanel } from './QuestPanel'
 import './hud.css'
 
 export function Hud() {
@@ -12,6 +13,7 @@ export function Hud() {
   const handleEvents = useGameStore((s) => s.handleEvents)
   const [talentsOpen, setTalentsOpen] = useState(false)
   const [trainerOpen, setTrainerOpen] = useState(false)
+  const [questOpen, setQuestOpen] = useState(false)
 
   useEffect(() => {
     const onConsole = (e: Event) => {
@@ -24,9 +26,11 @@ export function Hud() {
     const onKey = (e: KeyboardEvent) => {
       if (e.code === 'KeyN') setTalentsOpen((v) => !v)
       if (e.code === 'KeyK') setTrainerOpen((v) => !v)
+      if (e.code === 'KeyL') setQuestOpen((v) => !v)
       if (e.code === 'Escape') {
         setTalentsOpen(false)
         setTrainerOpen(false)
+        setQuestOpen(false)
       }
     }
     window.addEventListener('cws-console', onConsole)
@@ -54,7 +58,10 @@ export function Hud() {
     hamstring: 'HSG',
     bloodrage: 'BR',
     overpower: 'OP',
-    execute: 'EXE',
+    sunder_armor: 'SUN',
+    cleave: 'CLV',
+    revenge: 'REV',
+    slam: 'SLM',
   }
 
   return (
@@ -145,6 +152,7 @@ export function Hud() {
       </div>
       <TalentPanel open={talentsOpen} onClose={() => setTalentsOpen(false)} />
       <TrainerPanel open={trainerOpen} onClose={() => setTrainerOpen(false)} />
+      <QuestPanel open={questOpen} onClose={() => setQuestOpen(false)} />
     </div>
   )
 }

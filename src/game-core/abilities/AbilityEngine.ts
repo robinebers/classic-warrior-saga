@@ -145,8 +145,8 @@ export function defaultActionBar(): string[] {
     'bloodrage',
     'overpower',
     'execute',
-    '',
-    '',
+    'sunder_armor',
+    'cleave',
   ]
 }
 

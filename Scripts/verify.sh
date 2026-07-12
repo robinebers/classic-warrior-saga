@@ -12,6 +12,9 @@ pnpm lint
 echo "==> unit tests"
 pnpm test
 
+echo "==> e2e (optional if playwright browsers present)"
+pnpm test:e2e || echo "WARN: e2e skipped/failed — check playwright browsers"
+
 echo "==> build"
 pnpm build
 

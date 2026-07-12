@@ -25,6 +25,7 @@ import {
   type AbilityRuntime,
 } from './abilities/AbilityEngine'
 import { ABILITIES } from './abilities/AbilityData'
+import { QuestLog } from './quests/QuestLog'
 import type { EntityId } from './types'
 import { EventBus, type Stance, type Vec3 } from './types'
 
@@ -189,6 +190,7 @@ export class World {
   private attackAnimT = 0
   abilityRt: AbilityRuntime = createAbilityRuntime()
   actionBar: string[] = defaultActionBar()
+  quests = new QuestLog()
   tickCount = 0
   timescale = 1
 
@@ -197,6 +199,7 @@ export class World {
     resetIdCounter(1)
     this.player = createPlayer('Thrakmar')
     learnAvailable(this.player)
+    this.quests.accept('boar_tusk_harvest')
   }
 
   queueIntent(i: Intent): void {
@@ -465,8 +468,122 @@ export class World {
       }
       case 'hamstring':
       case 'overpower':
+      case 'slam':
+      case 'revenge':
         this.resolveYellowHit(id, rank.effect)
         if (id === 'overpower') this.abilityRt.overpowerWindow = 0
+        if (id === 'revenge') this.abilityRt.revengeWindow = 0
+        break
+      case 'sunder_armor': {
+        if (!target || !target.alive) {
+          this.events.push({ type: 'chat', channel: 'error', text: 'Invalid Target' })
+          return
+        }
+        const existing = this.abilityRt.auras.find(
+          (a) => a.id === 'sunder_armor' && a.targetId === target.id,
+        )
+        if (existing) {
+          existing.stacks = Math.min(5, existing.stacks + 1)
+          existing.remaining = rank.durationSec ?? 30
+        } else {
+          this.abilityRt.auras.push({
+            id: 'sunder_armor',
+            name: 'Sunder Armor',
+            remaining: rank.durationSec ?? 30,
+            tickEvery: 999,
+            tickAcc: 0,
+            stacks: 1,
+            source: 'player',
+            targetId: target.id,
+          })
+        }
+        const stacks =
+          this.abilityRt.auras.find((a) => a.id === 'sunder_armor' && a.targetId === target.id)
+            ?.stacks ?? 1
+        target.armor = Math.max(0, target.armor - rank.effect)
+        this.events.push({
+          type: 'chat',
+          channel: 'combat',
+          text: `Your Sunder Armor Hits ${target.name} (${stacks} Stacks).`,
+        })
+        break
+      }
+      case 'demoralizing_shout': {
+        let n = 0
+        for (const m of this.mobs.values()) {
+          if (!m.alive) continue
+          if (Math.sqrt(distSq(p.position, m.position)) > 10) continue
+          n++
+        }
+        this.events.push({
+          type: 'chat',
+          channel: 'combat',
+          text: `Your Demoralizing Shout Hits ${n} Enemies.`,
+        })
+        break
+      }
+      case 'whirlwind': {
+        let hits = 0
+        for (const m of this.mobs.values()) {
+          if (!m.alive) continue
+          if (Math.sqrt(distSq(p.position, m.position)) > 8) continue
+          if (hits >= 4) break
+          const dmg = Math.max(
+            1,
+            Math.floor(
+              weaponSwingDamage(p.weaponMin, p.weaponMax, p.weaponSpeed, p.ap, this.rng.nextFloat()),
+            ),
+          )
+          m.health -= dmg
+          hits++
+          if (m.health <= 0) this.killMob(m)
+        }
+        p.anim = 'attack'
+        this.attackAnimT = 0.6
+        this.events.push({
+          type: 'chat',
+          channel: 'combat',
+          text: `Your Whirlwind Hits ${hits} Enemies.`,
+        })
+        break
+      }
+      case 'intercept': {
+        if (!target || !target.alive) {
+          this.events.push({ type: 'chat', channel: 'error', text: 'Invalid Target' })
+          return
+        }
+        if (!p.inCombat) {
+          this.events.push({ type: 'chat', channel: 'error', text: 'Can Only Be Used In Combat' })
+          return
+        }
+        const dx = target.position.x - p.position.x
+        const dz = target.position.z - p.position.z
+        const len = Math.hypot(dx, dz) || 1
+        p.position.x = target.position.x - (dx / len) * 2
+        p.position.z = target.position.z - (dz / len) * 2
+        p.yaw = Math.atan2(dx, -dz)
+        this.events.push({
+          type: 'chat',
+          channel: 'combat',
+          text: `You Intercept ${target.name}.`,
+        })
+        break
+      }
+      case 'taunt': {
+        if (!target || !target.alive) {
+          this.events.push({ type: 'chat', channel: 'error', text: 'Invalid Target' })
+          return
+        }
+        target.aggroTarget = p.id
+        this.events.push({
+          type: 'chat',
+          channel: 'combat',
+          text: `You Taunt ${target.name}.`,
+        })
+        break
+      }
+      case 'shield_block':
+        this.events.push({ type: 'chat', channel: 'combat', text: 'You Raise Your Shield.' })
         break
       default:
         this.resolveYellowHit(id, rank.effect)
@@ -652,9 +769,9 @@ export class World {
   private resolvePlayerSwing(target: MobState): void {
     const p = this.player
     const queued = this.abilityRt.nextSwingAbility
-    const yellow = queued === 'heroic_strike'
+    const yellow = queued === 'heroic_strike' || queued === 'cleave'
     if (queued && yellow) {
-      const cost = 15
+      const cost = queued === 'cleave' ? 20 : 15
       if (p.rage < cost) {
         this.abilityRt.nextSwingAbility = null
       }
@@ -699,12 +816,31 @@ export class World {
     }
 
     let bonus = 0
-    if (yellow && this.abilityRt.nextSwingAbility === 'heroic_strike') {
-      const rank = p.knownAbilities.heroic_strike ?? 1
-      const def = ABILITIES.find((a) => a.id === 'heroic_strike')
-      bonus = def?.ranks.find((r) => r.rank === rank)?.effect ?? 11
-      p.rage = Math.max(0, p.rage - 15)
+    let label = 'Auto Attack'
+    if (yellow && this.abilityRt.nextSwingAbility) {
+      const qid = this.abilityRt.nextSwingAbility
+      const rankN = p.knownAbilities[qid] ?? 1
+      const def = ABILITIES.find((a) => a.id === qid)
+      bonus = def?.ranks.find((r) => r.rank === rankN)?.effect ?? 11
+      p.rage = Math.max(0, p.rage - (qid === 'cleave' ? 20 : 15))
       this.abilityRt.nextSwingAbility = null
+      label = def?.name ?? 'Ability'
+      // Cleave secondary target
+      if (qid === 'cleave') {
+        for (const m of this.mobs.values()) {
+          if (!m.alive || m.id === target.id) continue
+          if (Math.sqrt(distSq(p.position, m.position)) > 5) continue
+          const secondary = Math.max(1, Math.floor(bonus))
+          m.health -= secondary
+          this.events.push({
+            type: 'chat',
+            channel: 'combat',
+            text: `Your Cleave Also Hits ${m.name} For ${secondary}.`,
+          })
+          if (m.health <= 0) this.killMob(m)
+          break
+        }
+      }
     }
 
     let dmg = weaponSwingDamage(
@@ -738,7 +874,6 @@ export class World {
       yellow,
     })
     const verb = outcome === 'crit' ? 'Crits' : 'Hits'
-    const label = yellow ? 'Heroic Strike' : 'Auto Attack'
     this.events.push({
       type: 'chat',
       channel: 'combat',
@@ -807,6 +942,80 @@ export class World {
       channel: 'system',
       text: `${mob.name} Dies. You Gain ${awarded} Experience.`,
     })
+    for (const line of this.quests.onKill(mob.archetype)) {
+      this.events.push({ type: 'chat', channel: 'system', text: line })
+    }
+  }
+
+  acceptQuest(questId: string): void {
+    const err = this.quests.accept(questId)
+    if (err) {
+      this.events.push({ type: 'chat', channel: 'error', text: err })
+      return
+    }
+    const def = this.quests.def(questId)
+    this.events.push({
+      type: 'chat',
+      channel: 'system',
+      text: `Accepted: ${def?.title ?? questId}`,
+    })
+  }
+
+  turnInQuest(questId: string): void {
+    const res = this.quests.turnIn(questId)
+    if (!res.ok) {
+      this.events.push({ type: 'chat', channel: 'error', text: res.error })
+      return
+    }
+    this.addXp(res.def.xpReward)
+    this.player.copper += res.def.copperReward
+    this.events.push({
+      type: 'chat',
+      channel: 'system',
+      text: `Completed: ${res.def.title} (+${res.def.xpReward} XP)`,
+    })
+    if (questId === 'a_warriors_shield') {
+      this.player.knownAbilities.defensive_stance = 1
+      this.player.knownAbilities.sunder_armor = 1
+      this.player.knownAbilities.taunt = 1
+      this.events.push({
+        type: 'chat',
+        channel: 'system',
+        text: 'You Have Learned Defensive Stance, Sunder Armor, And Taunt.',
+      })
+    }
+    if (questId === 'test_of_fury') {
+      this.player.knownAbilities.berserker_stance = 1
+      this.player.knownAbilities.intercept = 1
+      this.events.push({
+        type: 'chat',
+        channel: 'system',
+        text: 'You Have Learned Berserker Stance And Intercept.',
+      })
+    }
+  }
+
+  switchStance(stance: Stance): void {
+    if (this.player.stance === stance) return
+    if (stance === 'defensive' && !(this.player.knownAbilities.defensive_stance > 0)) {
+      this.events.push({ type: 'chat', channel: 'error', text: 'You Have Not Learned Defensive Stance' })
+      return
+    }
+    if (stance === 'berserker' && !(this.player.knownAbilities.berserker_stance > 0)) {
+      this.events.push({ type: 'chat', channel: 'error', text: 'You Have Not Learned Berserker Stance' })
+      return
+    }
+    if (this.abilityRt.stanceCdRemaining > 0) {
+      this.events.push({ type: 'chat', channel: 'error', text: 'Ability Not Ready Yet' })
+      return
+    }
+    const retain = 5 * (this.player.talents.tactical_mastery ?? 0)
+    this.player.rage = Math.min(this.player.rage, retain)
+    this.player.stance = stance
+    this.abilityRt.stanceCdRemaining = 1
+    const label =
+      stance === 'battle' ? 'Battle Stance' : stance === 'defensive' ? 'Defensive Stance' : 'Berserker Stance'
+    this.events.push({ type: 'chat', channel: 'system', text: `You Enter ${label}.` })
   }
 
   private decayRage(dt: number): void {
@@ -882,6 +1091,23 @@ export class World {
       case 'timescale':
         this.timescale = Number(args[0] || 1)
         break
+      case 'acceptquest':
+        this.acceptQuest(args[0] || 'boar_tusk_harvest')
+        break
+      case 'turnin':
+        this.turnInQuest(args[0] || '')
+        break
+      case 'stance': {
+        const s = (args[0] || 'battle').toLowerCase()
+        this.switchStance(
+          s === 'defensive' || s === 'd'
+            ? 'defensive'
+            : s === 'berserker' || s === 'z'
+              ? 'berserker'
+              : 'battle',
+        )
+        break
+      }
       case 'killtarget': {
         const t =
           this.player.targetId != null ? this.mobs.get(this.player.targetId) : undefined
@@ -920,10 +1146,10 @@ export class World {
     this.player.weaponSkillAxes2H = 5 * level + 5
     if (level >= 6) this.player.parryUnlocked = true
     learnAvailable(this.player)
-    // starter 2H feel after first ding quest would replace — bump weapon a bit by level
-    this.player.weaponMin = 2 + Math.floor(level * 0.8)
-    this.player.weaponMax = 4 + Math.floor(level * 1.2)
-    this.player.weaponSpeed = level >= 4 ? 3.3 : 1.9
+    // Quest/vendor weapon upgrades by level (tunable feel — logged A5)
+    this.player.weaponMin = Math.floor(3 + level * 1.6)
+    this.player.weaponMax = Math.floor(6 + level * 2.4)
+    this.player.weaponSpeed = level >= 4 ? 2.8 : 1.9
     this.events.push({ type: 'levelUp', level })
     this.events.push({
       type: 'chat',

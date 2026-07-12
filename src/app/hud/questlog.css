@@ -1,0 +1,67 @@
+.quest-panel {
+  position: absolute;
+  right: 16px;
+  top: 170px;
+  width: min(360px, 40vw);
+  max-height: 55vh;
+  overflow: auto;
+  background: #1a140fee;
+  border: 3px solid #c9a227;
+  color: #f0e6d2;
+  padding: 12px;
+  z-index: 30;
+  pointer-events: auto;
+  font-family: Georgia, serif;
+}
+.quest-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.quest-header h2 {
+  margin: 0;
+  color: #ffd100;
+  font-size: 18px;
+}
+.quest-header button {
+  margin-left: auto;
+  background: #2a2118;
+  border: 1px solid #c9a227;
+  color: #f0e6d2;
+  cursor: pointer;
+}
+.quest-empty {
+  opacity: 0.7;
+}
+.quest-entry {
+  border-top: 1px solid #443322;
+  padding: 8px 0;
+}
+.quest-title {
+  color: #ffd100;
+  font-weight: 700;
+}
+.quest-entry.completed .quest-title {
+  color: #7dce6a;
+}
+.qlvl {
+  opacity: 0.7;
+  font-weight: 400;
+}
+.quest-flavor {
+  font-size: 12px;
+  opacity: 0.85;
+  margin: 4px 0;
+}
+.quest-entry ul {
+  margin: 4px 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.quest-entry button {
+  background: #2a3a18;
+  border: 1px solid #c9a227;
+  color: #f0e6d2;
+  cursor: pointer;
+  padding: 4px 10px;
+}
