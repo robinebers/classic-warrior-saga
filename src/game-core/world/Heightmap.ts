@@ -117,12 +117,12 @@ export function sampleHeight(x: number, z: number): number {
     y += Math.sin(x * 0.08) * Math.sin(z * 0.06) * 4
   }
 
-  // Rock pillars local mounds
+  // Rock pillars — subtle base only (visual mesh sits on top; avoid “sphere on cone” mounds)
   for (const r of ROCKS) {
     const d = Math.hypot(x - r.x, z - r.z)
-    if (d < r.radius * 1.8) {
-      const t = 1 - d / (r.radius * 1.8)
-      y += t * t * r.height * 0.55
+    if (d < r.radius * 1.2) {
+      const t = 1 - d / (r.radius * 1.2)
+      y += t * t * Math.min(2.2, r.height * 0.12)
     }
   }
 

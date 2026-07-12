@@ -134,11 +134,11 @@ function Scrub() {
             </mesh>
           )
         }
-        // scrub bush
+        // scrub bush — dry Barrens tuft
         return (
-          <mesh key={i} position={[s.x, y + 0.35, s.z]}>
-            <sphereGeometry args={[0.45 + (i % 3) * 0.12, 5, 4]} />
-            <meshStandardMaterial color="#5a4a22" flatShading />
+          <mesh key={i} position={[s.x, y + 0.25, s.z]} scale={[1, 0.7, 1]}>
+            <coneGeometry args={[0.55 + (i % 3) * 0.1, 0.7, 5]} />
+            <meshStandardMaterial color="#8a6a28" flatShading />
           </mesh>
         )
       })}

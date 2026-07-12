@@ -208,8 +208,8 @@ export class World {
     this.player = createPlayer('Thrakmar')
     learnAvailable(this.player)
     this.quests.accept('boar_tusk_harvest')
-    // Start near campfire in the valley bowl
-    this.player.position = { x: 0, y: sampleHeight(0, 6), z: 6 }
+    // Start near campfire in the valley bowl (not on top of the fire)
+    this.player.position = { x: -6, y: sampleHeight(-6, 4), z: 4 }
   }
 
   queueIntent(i: Intent): void {
