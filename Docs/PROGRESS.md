@@ -40,3 +40,5 @@
 ## Next
 
 Quest turn-in UI polish, more talent effects, zones/Gor'mash, Howler with user Sounds/, Playwright CI green, longer R1–R6 demos.
+
+7. **A7 — Classic models blocked on this Linux agent:** wow.export is Windows-first; no public CDN pack of 1.12 character GLBs was reachable. Bootstrap KayKit/Quaternius remain until user drops wow.export GLBs into `Assets/External/wow/` and runs `Scripts/import_classic_models.sh`.
